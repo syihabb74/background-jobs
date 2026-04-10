@@ -5,7 +5,6 @@ use std::{
 };
 
 use crate::email::Email;
-use serde_json;
 
 #[derive(Debug)]
 pub struct UnixServer {
