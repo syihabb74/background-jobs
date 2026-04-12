@@ -1,10 +1,16 @@
+use core::error;
 use std::{
-    io::{ErrorKind, Read},
+    io::{ErrorKind, Read, Write},
     os::unix::net::UnixListener,
+    rc::Rc,
+    sync::{
+        Arc,
+        mpsc::{Receiver, Sender},
+    },
     thread,
 };
 
-use crate::email::Email;
+use crate::{WILL_SHUTDOWN, email::Email};
 
 #[derive(Debug)]
 pub struct UnixServer {
@@ -43,9 +49,10 @@ impl UnixServer {
         }
     }
 
-    pub fn listening(&mut self) {
+    pub fn listening(&mut self, tx: Sender<Email>) {
         if let Some(ref listener) = self.listener {
             for stream in listener.incoming() {
+                let sender = tx.clone();
                 let _ = thread::spawn(move || {
                     let mut stream = stream.unwrap();
                     let mut buffer = [0u8; 1024];
@@ -57,7 +64,17 @@ impl UnixServer {
                                 break;
                             }
                             Ok(n) => {
-                                    let email = Email::to_struct(&mut buffer);
+                                println!("{}", WILL_SHUTDOWN.load(std::sync::atomic::Ordering::Relaxed));
+                                if WILL_SHUTDOWN.load(std::sync::atomic::Ordering::Relaxed) {
+                                    println!("Will shutdown process");
+                                    stream.write_all(b"Server will shutdown").ok();
+                                    stream.flush().ok();
+                                } else {
+                                    let email = Email::to_struct(&mut buffer, n);
+                                    sender.send(email).unwrap();
+                                    stream.write_all(b"OK: Email received processing background jobs\n").ok();
+                                    stream.flush().ok();
+                                }
                             }
                             Err(e) => {
                                 eprintln!("Error: {}", e);
