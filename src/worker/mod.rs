@@ -1,6 +1,34 @@
-use std::{sync::{Arc, Mutex, mpsc::Receiver}, thread::{self, JoinHandle}, time::Duration};
+use std::{sync::{Arc, Mutex, mpsc::{self, Receiver}}, thread::{self, JoinHandle}, time::Duration};
 
 use crate::{WILL_SHUTDOWN, app_state::AppState, email::Email};
+
+pub struct ThreadPool {
+    workers : Vec<JoinHandle<()>>,
+    tx : mpsc::Sender<Email>   
+}
+
+impl ThreadPool {
+    pub fn new (size : usize) -> Self {
+        let (tx, rx) = mpsc::channel::<Email>();
+        let rx = Arc::new(Mutex::new(rx));
+        let mut workers = Vec::with_capacity(size);
+        for id in 0..size {
+            let rx = Arc::clone(&rx);
+
+            let handle = thread::spawn(move || {
+                
+            });
+
+            workers.push(handle);
+        };
+
+        Self { workers, tx }
+
+    }
+}
+
+
+
 
 pub fn worker (receiver : Receiver<Email>, app_state : Arc<Mutex<AppState>>) -> JoinHandle<()> {
     thread::spawn(move || {
