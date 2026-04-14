@@ -6,5 +6,6 @@ pub mod app_state;
 pub mod queue;
 pub mod signaling;
 pub mod worker;
+pub mod thread_pool;
 
 pub static WILL_SHUTDOWN: AtomicBool = AtomicBool::new(false);
