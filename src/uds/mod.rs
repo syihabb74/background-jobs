@@ -45,14 +45,13 @@ impl UnixServer {
         }
     }
 
-    pub fn listening(&mut self, tx: Sender<Email>, state: Arc<Mutex<AppState>>) {
+    pub fn listening(&mut self, tx: Sender<Email>) {
         if let Some(ref listener) = self.listener {
             listener.set_nonblocking(true).ok();
 
             loop {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
-                        let state = Arc::clone(&state);
                         let sender = tx.clone();
                         thread::spawn(move || {
                             stream
@@ -97,12 +96,6 @@ impl UnixServer {
                                     }
                                 }
 
-                                if WILL_SHUTDOWN.load(std::sync::atomic::Ordering::Relaxed) {
-                                    let state = state.lock().unwrap();
-                                    if state.total_works == 0 {
-                                        break;
-                                    }
-                                }
                             }
                         });
                     }
@@ -113,11 +106,6 @@ impl UnixServer {
                     }
                 }
 
-                if WILL_SHUTDOWN.load(std::sync::atomic::Ordering::Relaxed) {
-                    break;
-                }
-
-                thread::sleep(Duration::from_millis(500));
             }
         }
     }

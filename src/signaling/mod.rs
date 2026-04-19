@@ -1,4 +1,4 @@
-use std::{thread::{self, JoinHandle}};
+use std::{process, thread::{self, JoinHandle}};
 use signal_hook::{consts::{SIGINT, SIGTERM}, iterator::Signals};
 use crate::WILL_SHUTDOWN;
 
@@ -15,6 +15,7 @@ pub fn graceful_shutdown () -> JoinHandle<()>  {
                     println!("SIGINT received");
                     WILL_SHUTDOWN.store(true, std::sync::atomic::Ordering::Relaxed);
                     println!("Nyangkut di signal");
+                    process::exit(1);
                     break;
                 }
                 ,
