@@ -44,3 +44,4 @@ impl Worker {
         Self { no, thread }
     }
 }
+

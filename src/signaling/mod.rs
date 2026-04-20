@@ -14,15 +14,12 @@ pub fn graceful_shutdown () -> JoinHandle<()>  {
                 SIGINT => {
                     println!("SIGINT received");
                     WILL_SHUTDOWN.store(true, std::sync::atomic::Ordering::Relaxed);
-                    println!("Nyangkut di signal");
-                    process::exit(1);
                     break;
                 }
                 ,
                 SIGTERM => {
                     println!("SIGTERM received");
                     WILL_SHUTDOWN.store(true, std::sync::atomic::Ordering::Relaxed);
-                    println!("Nyangkut di signal");
                     break
                 }
                 ,
