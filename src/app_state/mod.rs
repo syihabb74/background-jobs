@@ -20,7 +20,9 @@ impl AppState {
     }
 
     pub fn decrease_task(&mut self) {
-        self.total_task -= 1;
+        if self.total_task != 0 {
+            self.total_task -= 1;
+        }
         if self.total_task == 0 {
             self.has_task = false;
         }

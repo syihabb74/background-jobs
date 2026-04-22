@@ -1,9 +1,11 @@
+use crate::{WILL_SHUTDOWN, app_state::AppState, queue::Queue};
+use colored::Colorize;
+use std::sync::atomic::Ordering::Relaxed;
 use std::{
     sync::{Arc, Condvar, Mutex},
-    thread::{self, JoinHandle}, time::Duration,
+    thread::{self, JoinHandle},
+    time::Duration,
 };
-use colored::Colorize;
-use crate::{app_state::AppState, queue::Queue};
 
 pub struct Worker {
     no: usize,
@@ -16,33 +18,40 @@ impl Worker {
         queue: Arc<(Mutex<Queue>, Condvar)>,
         app_state: Arc<Mutex<AppState>>,
     ) -> Self {
-
         let thread = thread::spawn(move || {
             let (lock, cvar) = &*queue;
 
             loop {
                 let mut guard = lock.lock().unwrap();
 
-                while guard.queue.is_empty() {
+                while guard.queue.is_empty() && !WILL_SHUTDOWN.load(Relaxed) {
                     guard = cvar.wait(guard).unwrap();
+                }
+
+                if guard.queue.is_empty() && WILL_SHUTDOWN.load(Relaxed) {
+                    break;
                 }
 
                 let job = guard.remove_queue();
 
-                let mut app_state_lock = app_state.lock().unwrap();
-                app_state_lock.decrease_task();
-                println!("{}", format!("Jumlah Task {}", app_state_lock.total_task).red());
-                drop(app_state_lock);
                 drop(guard);
-
+                
                 if let Some(_) = job {
+                    let mut app_state_lock = app_state.lock().unwrap();
+                    app_state_lock.decrease_task();
+                    println!(
+                        "{}",
+                        format!("Jumlah Task {}", app_state_lock.total_task).red()
+                    );
+                    drop(app_state_lock);
                     println!("{}", format!("Worker {} memproses", no).red());
-                    thread::sleep(Duration::from_millis(5000));
                 }
             }
+
+            println!("Queue clean up after SIGINT or SIGTERM signal Received")
+
         });
 
         Self { no, thread }
     }
 }
-

@@ -50,9 +50,12 @@ impl Queue {
                 let mut state_app_lock = state_app.lock().unwrap();
                 println!("{}", format!("Jumlah Task {}", state_app_lock.total_task).green());
                 state_app_lock.increase_task();
+                drop(lock);
                 drop(state_app_lock);
                 cvar.notify_one();
             }
+
+            println!("Queue clean up after SIGINT or SIGTERM signal Received")
             
         })
     }

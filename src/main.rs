@@ -19,7 +19,7 @@ fn main() {
     let run = server.deploy_uds();
     match run {
         Ok(_) => {
-            println!("Running");
+            // println!("Running");
         }
         Err(e) => {
             println!("{}", e)

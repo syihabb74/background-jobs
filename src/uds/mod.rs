@@ -1,10 +1,9 @@
 use std::{
     io::{ErrorKind, Read, Write},
     os::unix::net::{UnixListener, UnixStream},
-    sync::mpsc::Sender, thread, time::Duration,
+    sync::mpsc::Sender, thread
 };
 use std::sync::atomic::Ordering::Relaxed;
-use colored::Colorize;
 
 use crate::{WILL_SHUTDOWN, email::Email};
 
@@ -49,6 +48,7 @@ impl UnixServer {
         let unix_listener = self.listener.as_ref();
         match unix_listener {
             Some(listener) => {
+                println!("Connect");
                 loop {
                     println!("Running");
                     let sender = tx.clone();
@@ -107,6 +107,7 @@ impl Drop for UnixServer {
 fn handle_client(mut stream: UnixStream, sender: Sender<Email>) {
     let mut buffer = [0u8; 1024];
     loop {
+        println!("Running stream");
         if WILL_SHUTDOWN.load(Relaxed) {
             break;
         }
