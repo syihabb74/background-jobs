@@ -6,14 +6,20 @@ use std::{
 use rustls::{ClientConfig, ClientConnection, RootCertStore, StreamOwned};
 use rustls_pki_types::ServerName;
 
+type Closure = Box<dyn 'static + Fn(&str) -> Result<(), Box<dyn std::error::Error>>>;
+
 pub struct SmtpConfig {
     host: &'static str,
-    port: u16,
+    username : String, 
+    password : String
 }
 
 impl SmtpConfig {
-    pub fn new(host: &'static str, port: u16) -> Self {
-        Self { host, port }
+    pub fn new(
+    host: &'static str,
+    username : String,
+    password : String) -> Self {
+        Self { host, username, password }
     }
 
     pub fn connect<T>(&self, stream: T) -> LiveSmtp<T>
@@ -29,14 +35,21 @@ pub struct LiveSmtp<T: Read + Write> {
 }
 
 impl<T: Read + Write> LiveSmtp<T> {
-    pub fn communicating(&mut self, buff_reader : &mut BufReader<&mut T> ,cmd: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn communicating(
+        &mut self,
+        buff_reader : &mut BufReader<&mut T>,
+        cmd: &[u8],
+        closure : Option<Closure>
+    ) -> Result<(), Box<dyn std::error::Error>> {
         Self::write_cmd(&mut self.stream, cmd)?;
         loop {
             let mut response = String::new();
             match buff_reader.read_line(&mut response) {
                 Ok(0) => break,
                 Ok(_) => {
-                    println!("{}", response);
+                    if let Some(ref closure) = closure {
+                        closure(&response)?;
+                    }
                     if response.len() >= 4 && response.chars().nth(3) == Some(' ') {
                         break;
                     }
@@ -56,6 +69,17 @@ impl<T: Read + Write> LiveSmtp<T> {
         Ok(sending)
     }
 
+    pub fn authenticating (
+        &mut self,
+        config : Arc<SmtpConfig>,
+    ) {
+        
+        if let Err(e) = Self::write_cmd(&mut self.stream, b"EHLO \r\n") {
+            println!("Error occured cause {:?}", e)
+        }
+
+    }
+
     pub fn upgrade_tls(
         mut self,
         host: &str,
@@ -63,7 +87,7 @@ impl<T: Read + Write> LiveSmtp<T> {
     ) -> Result<LiveSmtp<StreamOwned<ClientConnection, T>>, Box<dyn std::error::Error>> {
         let mut move_buff_reader = buff_reader;
 
-        let _ = self.communicating(&mut move_buff_reader, b"STARTTLS \r\n");
+        let _ = self.communicating(&mut move_buff_reader, b"STARTTLS \r\n", None);
 
         let mut root_store = RootCertStore::empty();
         root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
