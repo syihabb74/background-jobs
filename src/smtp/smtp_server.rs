@@ -55,7 +55,7 @@ impl<T: Read + Write> LiveSmtp<T> {
             match reader.read_line(&mut response) {
                 Ok(0) => break,
                 Ok(_) => {
-                    if let Some(ref closure) = closure {
+                    if let Some(closure) = closure {
                         closure(&response)?;
                     }
                     if response.len() >= 4 && response.chars().nth(3) == Some(' ') {
@@ -79,11 +79,14 @@ impl<T: Read + Write> LiveSmtp<T> {
     pub fn authenticating (
         &mut self,
         config : Arc<SmtpConfig>,
-    ) {
+    ) -> Result<(), Box<dyn std::error::Error>> {
         
         if let Err(e) = self.communicating( b"EHLO \r\n", None) {
-            println!("Error occured cause {:?}", e)
+            println!("Error occured cause {:?}", e);
+            return Err(e)
         }
+
+        Ok(())
 
 
     }
@@ -114,3 +117,14 @@ impl<T: Read + Write> LiveSmtp<T> {
         })
     }
 }
+
+
+
+// todo 
+// check tls supported
+// check starttls ready
+// do auth
+// connect smtp
+// ready
+// make 4 thread
+// implement all of this to each thread
