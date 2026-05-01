@@ -14,7 +14,7 @@ type Closure =
 
 pub struct SmtpConfig {
     host: &'static str,
-    credentials : CredentialsInput,
+    credentials : SmtpCredential,
 }
 
 pub enum AuthMechanism {
@@ -27,25 +27,59 @@ pub enum AuthMechanism {
     Unknown(String)
 }
 
-pub struct EmailPassword {
-    email : String,
-    password : String
+// impl AuthMechanism {
+//     pub fn input_credential(&self) -> SmtpCredential {
+//         match self {
+//             AuthMechanism::Login |
+//             AuthMechanism::Plain |
+//             AuthMechanism::PlainClientToken => {
+
+//             },
+//             AuthMechanism::XOAuth |
+//             AuthMechanism::XOAuth2 => {
+
+//             },
+//             AuthMechanism::OAuthBearer => {
+
+//             },
+//             AuthMechanism::Unknown(s) => {
+
+//             }
+//         }
+//     }
+// }
+
+pub enum SmtpCredential {
+
+    EmailPassword {
+        email: String,
+        password: String,
+    },
+
+   
+    OAuth {
+        email: String,
+        access_token: String,
+    },
+
+    OAuthBearer {
+        bearer_token : String
+    }
 }
 
-pub struct ApiKey {
-    email : String,
-    api_key : String
-}
+impl SmtpCredential {
+    pub fn new_email_password(email : String, password : String) -> Self {
+        SmtpCredential::EmailPassword { email, password }
+    }
 
-pub struct OAuth {
-    email : String,
-    access_token : String
-}
+    pub fn new_oauth(email : String, access_token : String) -> Self {
+        SmtpCredential::OAuth { email, access_token }
+    }
 
-pub enum CredentialsInput {
-    EmailPassword,
-    ApiKey,
-    OAuth
+    pub fn new_oauth_bearer(bearer_token : String) -> Self {
+        SmtpCredential::OAuthBearer { bearer_token }
+    }
+
 }
 
 impl SmtpConfig {

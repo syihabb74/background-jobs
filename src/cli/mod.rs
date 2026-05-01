@@ -1,5 +1,5 @@
-use std::io;
-use crate::smtp::smtp_server::AuthMechanism;
+use std::io::{self, Write};
+use crate::smtp::smtp_server::{AuthMechanism, SmtpCredential};
 
 pub fn cli_smtp(auth_mechs: Vec<AuthMechanism>) -> Result<AuthMechanism, Box<dyn std::error::Error>> {
     if auth_mechs.is_empty() {
@@ -40,4 +40,39 @@ pub fn cli_smtp(auth_mechs: Vec<AuthMechanism>) -> Result<AuthMechanism, Box<dyn
         .into_iter()
         .nth(choice)
         .ok_or_else(|| "Index tidak ditemukan".into())
+}
+
+pub fn prompt(label: &str, output: &mut String) {
+    print!("{}: ", label);
+    io::stdout().flush().unwrap();
+    io::stdin().read_line(output).unwrap();
+    *output = output.trim().to_string();  // hapus \n
+}
+
+pub fn cli_credentials(auth_mechanism: AuthMechanism) -> Result<SmtpCredential, Box<dyn std::error::Error>> {
+    match auth_mechanism {
+        AuthMechanism::Plain |
+        AuthMechanism::PlainClientToken |
+        AuthMechanism::Login => {
+            let mut email = String::new();
+            let mut password = String::new();
+            prompt("Email", &mut email);
+            prompt("Password", &mut password);
+            Ok(SmtpCredential::new_email_password(email, password))
+        }
+        AuthMechanism::XOAuth |
+        AuthMechanism::XOAuth2 => {
+            let mut email = String::new();
+            let mut token = String::new();
+            prompt("Email", &mut email);
+            prompt("OAuth Token", &mut token);
+            Ok(SmtpCredential::new_oauth(email, token))
+        }
+        AuthMechanism::OAuthBearer => {
+            let mut token = String::new();
+            prompt("Bearer Token", &mut token);
+            Ok(SmtpCredential::new_oauth_bearer(token))
+        }
+        AuthMechanism::Unknown(s) => Err(s.into())
+    }
 }
