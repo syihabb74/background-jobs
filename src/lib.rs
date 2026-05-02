@@ -8,5 +8,7 @@ pub mod signaling;
 pub mod thread_pool;
 pub mod smtp;
 pub mod cli;
+pub type Closure =
+    Box<dyn 'static + Fn(&mut Vec<String>, String)>;
 
 pub static WILL_SHUTDOWN: AtomicBool = AtomicBool::new(false);

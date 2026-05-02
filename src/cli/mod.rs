@@ -1,7 +1,7 @@
 use std::io::{self, Write};
-use crate::smtp::smtp_server::{AuthMechanism, SmtpCredential};
+use crate::smtp::{auth_mechanism::AuthMechanism, smtp_server::SmtpCredential};
 
-pub fn cli_smtp(auth_mechs: Vec<AuthMechanism>) -> Result<AuthMechanism, Box<dyn std::error::Error>> {
+pub fn cli_auth_smtp(auth_mechs: Vec<AuthMechanism>) -> Result<AuthMechanism, Box<dyn std::error::Error>> {
     if auth_mechs.is_empty() {
         return Err("Tidak ada metode autentikasi yang tersedia".into());
     }
@@ -49,7 +49,7 @@ pub fn prompt(label: &str, output: &mut String) {
     *output = output.trim().to_string();  // hapus \n
 }
 
-pub fn cli_credentials(auth_mechanism: AuthMechanism) -> Result<SmtpCredential, Box<dyn std::error::Error>> {
+pub fn cli_auth_credentials(auth_mechanism: &AuthMechanism) -> Result<SmtpCredential, Box<dyn std::error::Error>> {
     match auth_mechanism {
         AuthMechanism::Plain |
         AuthMechanism::PlainClientToken |
@@ -73,6 +73,6 @@ pub fn cli_credentials(auth_mechanism: AuthMechanism) -> Result<SmtpCredential, 
             prompt("Bearer Token", &mut token);
             Ok(SmtpCredential::new_oauth_bearer(token))
         }
-        AuthMechanism::Unknown(s) => Err(s.into())
+        AuthMechanism::Unknown(s) => Err(s.to_string().into())
     }
 }

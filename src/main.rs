@@ -1,9 +1,16 @@
-use std::{sync::{Arc, Condvar, Mutex, mpsc}, thread};
+use std::{process, sync::{Arc, Condvar, Mutex, mpsc}, thread};
 
-use background_jobs::{app_state::AppState, queue::Queue, signaling, thread_pool::{self}, uds::UnixServer};
+use background_jobs::{app_state::AppState, queue::Queue, signaling, smtp::smtp_server::{SmtpConfig, SmtpCredential}, thread_pool::{self}, uds::UnixServer};
 
 fn main() {
+    let smtp_config = SmtpConfig::new("smtp.gmail.com:587");
+    let smtp_server = smtp_config.connect().unwrap();
+    let mut tls_smtp_server = smtp_server.upgrade_tls().unwrap();
+    if let Err(e) = tls_smtp_server.authenticating() {
+        println!("{}", e)
+    }
 
+    process::exit(1);
     let graceful_shutdown = signaling::graceful_shutdown();
     let state_app = Arc::new(Mutex::new(AppState::new()));
     let queue = Arc::new((Mutex::new(Queue::new()), Condvar::new()));
