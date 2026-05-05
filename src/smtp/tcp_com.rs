@@ -25,6 +25,8 @@ pub fn read_response<T: Read + Write>(
                 let is_last = response.as_bytes().get(3) == Some(&b' ');
                 if let Some(closure) = closure {
                     closure(response_result, response);
+                } else {
+                    response_result.push(response);
                 }
 
                 if is_last {

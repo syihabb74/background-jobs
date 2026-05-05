@@ -60,35 +60,23 @@ impl SmtpCredential {
             (
                 SmtpCredential::EmailPassword { email, password },
                 AuthMechanism::Plain | AuthMechanism::PlainClientToken,
-            ) => Ok(format!(
-                "\0{}\0{}",
-                Self::encode(email),
-                Self::encode(password)
-            )),
+            ) =>Ok(Self::encode(&format!("\0{}\0{}", email, password))),
             (
                 SmtpCredential::OAuth {
                     email,
                     access_token,
                 },
                 AuthMechanism::XOAuth,
-            ) => Ok(format!(
-                "user={}\x01auth=OAuth {}\x01\x01",
-                Self::encode(email),
-                Self::encode(access_token)
-            )),
+            ) => Ok(Self::encode(&format!("\0{}\0{}", email, access_token))),
             (
                 SmtpCredential::OAuth {
                     email,
                     access_token,
                 },
                 AuthMechanism::XOAuth2,
-            ) => Ok(format!(
-                "user={}\x01auth=Bearer {}\x01\x01",
-                Self::encode(email),
-                Self::encode(access_token)
-            )),
+            ) => Ok(Self::encode(&format!("\0{}\0{}", email, access_token))),
             (SmtpCredential::OAuthBearer { bearer_token }, AuthMechanism::OAuthBearer) => Ok(
-                format!("n,,\x01auth=Bearer {}\x01\x01", Self::encode(bearer_token)),
+                Self::encode(&format!("n,,\x01auth=Bearer {}\x01\x01", bearer_token)),
             ),
             (SmtpCredential::EmailPassword { email, password }, AuthMechanism::Login) => Ok(
                 format!("{},{}", Self::encode(email), Self::encode(password)),
@@ -178,6 +166,7 @@ impl<T: Read + Write> LiveSmtp<T> {
         println!("{:?} {:?}", credentials, auth_mechanism);
         if credentials.is_some() && auth_mechanism.is_some() {
             let _ = self.communicating(b"EHLO mylocalhost\r\n", None, &mut response_result);
+            response_result.clear();
             let c = credentials.unwrap();
             let a_m = auth_mechanism.unwrap();
             match a_m {
@@ -206,6 +195,13 @@ impl<T: Read + Write> LiveSmtp<T> {
                     self.communicating(auth_format.as_bytes(), None, &mut response_result)?;
                 }
             }
+
+            for response_server in response_result.iter() {
+                if let Some(_) = response_server.trim().strip_prefix("535") {
+                    return Err("Failed credentials".into())
+                }
+            }
+
         }
 
         Ok(())
