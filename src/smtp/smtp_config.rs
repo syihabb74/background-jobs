@@ -3,8 +3,7 @@ use std::{io, net::TcpStream};
 use crate::{
     cli::prompt,
     smtp::{
-        auth_mechanism::AuthMechanism,
-        smtp_server::{LiveSmtp, SmtpCredential},
+        auth_mechanism::AuthMechanism, smtp_credential::SmtpCredential, smtp_server::LiveSmtp,
         tcp_com::read_response,
     },
 };

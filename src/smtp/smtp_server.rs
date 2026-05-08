@@ -3,7 +3,6 @@ use std::{
     sync::Arc,
 };
 
-use base64::{Engine, engine::general_purpose};
 use rustls::{ClientConfig, ClientConnection, RootCertStore, StreamOwned};
 use rustls_pki_types::ServerName;
 
@@ -13,93 +12,10 @@ use crate::{
     smtp::{
         auth_mechanism::AuthMechanism,
         smtp_config::SmtpConfig,
+        smtp_credential::SmtpCredential,
         tcp_com::{read_response, write_cmd},
     },
 };
-
-pub enum Challenge {
-    Challenging,
-    NonChallenging,
-    NotSupported,
-}
-
-#[derive(Debug)]
-pub enum SmtpCredential {
-    EmailPassword { email: String, password: String },
-
-    OAuth { email: String, access_token: String },
-
-    OAuthBearer { bearer_token: String },
-}
-
-impl SmtpCredential {
-    pub fn new_email_password(email: String, password: String) -> Self {
-        SmtpCredential::EmailPassword { email, password }
-    }
-
-    pub fn new_oauth(email: String, access_token: String) -> Self {
-        SmtpCredential::OAuth {
-            email,
-            access_token,
-        }
-    }
-
-    pub fn new_oauth_bearer(bearer_token: String) -> Self {
-        SmtpCredential::OAuthBearer { bearer_token }
-    }
-
-    pub fn encode(plain: &String) -> String {
-        general_purpose::STANDARD.encode(plain)
-    }
-
-    pub fn encode_auth(
-        &self,
-        mechanism: &AuthMechanism,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        match (self, mechanism) {
-            (
-                SmtpCredential::EmailPassword { email, password },
-                AuthMechanism::Plain | AuthMechanism::PlainClientToken,
-            ) =>Ok(Self::encode(&format!("\0{}\0{}", email, password))),
-            (
-                SmtpCredential::OAuth {
-                    email,
-                    access_token,
-                },
-                AuthMechanism::XOAuth,
-            ) => Ok(Self::encode(&format!("\0{}\0{}", email, access_token))),
-            (
-                SmtpCredential::OAuth {
-                    email,
-                    access_token,
-                },
-                AuthMechanism::XOAuth2,
-            ) => Ok(Self::encode(&format!("\0{}\0{}", email, access_token))),
-            (SmtpCredential::OAuthBearer { bearer_token }, AuthMechanism::OAuthBearer) => Ok(
-                Self::encode(&format!("n,,\x01auth=Bearer {}\x01\x01", bearer_token)),
-            ),
-            (SmtpCredential::EmailPassword { email, password }, AuthMechanism::Login) => Ok(
-                format!("{},{}", Self::encode(email), Self::encode(password)),
-            ),
-            _ => Err(format!("Auth method currently is not supported").into()),
-        }
-    }
-
-    pub fn check_challenging_mechanism(&self, mechanism: &AuthMechanism) -> Challenge {
-        match (self, mechanism) {
-            (
-                _,
-                AuthMechanism::Plain
-                | AuthMechanism::PlainClientToken
-                | AuthMechanism::XOAuth
-                | AuthMechanism::XOAuth2
-                | AuthMechanism::OAuthBearer,
-            ) => Challenge::NonChallenging,
-            (_, AuthMechanism::Login) => Challenge::Challenging,
-            _ => Challenge::NotSupported,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct LiveSmtp<T: Read + Write> {
@@ -171,7 +87,9 @@ impl<T: Read + Write> LiveSmtp<T> {
             let a_m = auth_mechanism.unwrap();
             match a_m {
                 AuthMechanism::Login => {
-                    let _ = self.communicating(b"AUTH LOGIN\r\n", None, &mut response_result)?;
+                    let format_login = format!("{}\r\n", a_m.auth_command().unwrap());
+                    let _ =
+                        self.communicating(format_login.as_bytes(), None, &mut response_result)?;
                     let encode = c.encode_auth(a_m)?;
                     let (email, password) = encode
                         .split_once(',')
@@ -198,10 +116,14 @@ impl<T: Read + Write> LiveSmtp<T> {
 
             for response_server in response_result.iter() {
                 if let Some(_) = response_server.trim().strip_prefix("535") {
-                    return Err("Failed credentials".into())
+                    return Err("Failed credentials".into());
+                }
+
+                if let Some(_) = response_server.trim().strip_prefix("235") {
+                    println!("Login soccessfully");
+                    break;
                 }
             }
-
         }
 
         Ok(())

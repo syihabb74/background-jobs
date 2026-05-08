@@ -10,7 +10,7 @@ use background_jobs::{
     signaling,
     smtp::{
         smtp_config::SmtpConfig,
-        smtp_server::{self, SmtpCredential},
+        smtp_server::{self},
     },
     thread_pool::{self},
     uds::UnixServer,

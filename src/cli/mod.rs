@@ -1,4 +1,4 @@
-use crate::smtp::{auth_mechanism::AuthMechanism, smtp_server::SmtpCredential};
+use crate::smtp::{auth_mechanism::AuthMechanism, smtp_credential::SmtpCredential};
 use std::io::{self, Error, Write};
 
 pub fn cli_auth_smtp(

@@ -1,4 +1,4 @@
-use crate::{cli::prompt, smtp::smtp_server::SmtpCredential};
+use crate::{cli::prompt, smtp::smtp_credential::SmtpCredential};
 
 #[derive(Debug)]
 pub enum AuthMechanism {
@@ -26,7 +26,7 @@ impl AuthMechanism {
 
     pub fn auth_command(&self) -> Option<String> {
         match self {
-            Self::Login => Some("AUTH LOGIN\r\n".into()),
+            Self::Login => Some("AUTH LOGIN".into()),
             Self::Plain => Some("AUTH PLAIN".into()),
             Self::PlainClientToken => Some("AUTH PLAIN-CLIENTTOKEN".into()),
             Self::XOAuth => Some("AUTH XOAUTH".into()),
