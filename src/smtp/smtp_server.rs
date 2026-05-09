@@ -9,6 +9,7 @@ use rustls_pki_types::ServerName;
 use crate::{
     Closure,
     cli::{cli_auth_credentials, cli_auth_smtp},
+    email::Email,
     smtp::{
         auth_mechanism::AuthMechanism,
         smtp_config::SmtpConfig,
@@ -73,9 +74,9 @@ impl<T: Read + Write> LiveSmtp<T> {
 
     pub fn login(
         &mut self,
-        smtp_config: &Arc<SmtpConfig>,
+        smtp_config: Arc<SmtpConfig>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let smtp_config_clone = Arc::clone(&*smtp_config);
+        let smtp_config_clone = Arc::clone(&smtp_config);
         let mut response_result: Vec<String> = Vec::new();
         let credentials = smtp_config_clone.credentials.as_ref();
         let auth_mechanism = smtp_config_clone.auth_mechanism.as_ref();
@@ -175,5 +176,39 @@ impl<T: Read + Write> LiveSmtp<T> {
             stream: StreamOwned::new(conn, self.stream),
             server_name: self.server_name,
         })
+    }
+
+    pub fn send_email(
+        &mut self,
+        from: &str,
+        email: Email,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut bucket_response = vec![];
+
+        let mail_from = format!("MAIL FROM:<{}>\r\n", from);
+        let rcpt_to = format!("RCPT TO:<{}>\r\n", &email.to);
+
+        self.communicating(mail_from.as_bytes(), None, &mut bucket_response)?;
+        bucket_response.clear();
+        self.communicating(rcpt_to.as_bytes(), None, &mut bucket_response)?;
+        bucket_response.clear();
+        self.communicating(b"DATA\r\n", None, &mut bucket_response)?;
+        bucket_response.clear();
+
+        let from_header = format!("From: {}\r\n", from);
+        let to = format!("To: {}\r\n", email.to);
+        let subject = format!("Subject: {}\r\n", email.subject);
+        let content = format!("{}\r\n", email.content);
+
+        write_cmd(&mut self.stream, from_header.as_bytes())?;
+        write_cmd(&mut self.stream, to.as_bytes())?;
+        write_cmd(&mut self.stream, subject.as_bytes())?;
+        write_cmd(&mut self.stream, b"\r\n")?;
+        write_cmd(&mut self.stream, content.as_bytes())?;
+
+        // 4. Terminasi → perlu read 250
+        self.communicating(b".\r\n", None, &mut bucket_response)?;
+
+        Ok(())
     }
 }

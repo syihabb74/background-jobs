@@ -1,5 +1,4 @@
 use std::{
-    process,
     sync::{Arc, Condvar, Mutex, mpsc},
     thread,
 };
@@ -8,10 +7,7 @@ use background_jobs::{
     app_state::AppState,
     queue::Queue,
     signaling,
-    smtp::{
-        smtp_config::SmtpConfig,
-        smtp_server::{self},
-    },
+    smtp::smtp_config::SmtpConfig,
     thread_pool::{self},
     uds::UnixServer,
 };
@@ -24,9 +20,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     smtp_config.set_auth_mech(auth_mech);
     smtp_config.set_smtp_credentials(smtp_credential);
     let smtp_config = Arc::new(smtp_config);
-    tls_smtp_server.login(&smtp_config)?;
+    let smtp_config_clone_for_check = Arc::clone(&smtp_config);
+    let smtp_config_clone_for_worker = Arc::clone(&smtp_config);
+    tls_smtp_server.login(smtp_config_clone_for_check)?;
 
-    process::exit(1);
     let graceful_shutdown = signaling::graceful_shutdown();
     let state_app = Arc::new(Mutex::new(AppState::new()));
     let queue = Arc::new((Mutex::new(Queue::new()), Condvar::new()));
@@ -38,22 +35,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state_app_rx = Arc::clone(&state_app);
 
     let mut server = UnixServer::build(String::from("/tmp/server_bg_jobs.sock"));
-    let run = server.deploy_uds();
-    match run {
-        Ok(_) => {
-            // println!("Running");
-        }
-        Err(e) => {
-            println!("{}", e)
-        }
-    }
-
+    let _ = server.deploy_uds()?;
     thread::spawn(move || {
         server.listening(tx);
     });
     let dedicated_thread = Queue::dedicated_thread(queue_clone, rx, cloned_stated_app);
-    thread_pool::thread_pool::ThreadPool::new(4, queue_clone_rx, state_app_rx);
+    let _thread_pool = thread_pool::thread_pool::ThreadPool::new(
+        4,
+        queue_clone_rx,
+        state_app_rx,
+        smtp_config_clone_for_worker,
+    )?;
 
     graceful_shutdown.join().unwrap();
     dedicated_thread.join().unwrap();
+    Ok(())
 }

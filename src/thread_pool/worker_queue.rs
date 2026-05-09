@@ -1,22 +1,28 @@
+use crate::email::Email;
 use crate::{WILL_SHUTDOWN, app_state::AppState, queue::Queue};
 use colored::Colorize;
 use std::sync::atomic::Ordering::Relaxed;
+use std::sync::mpsc::Sender;
 use std::{
     sync::{Arc, Condvar, Mutex},
     thread::{self, JoinHandle},
 };
 
-pub struct Worker {
+pub struct WorkerQueue {
     _no: usize,
-    _thread: JoinHandle<()>,
+    _worker: JoinHandle<()>,
+    _sender_email: Arc<Sender<Email>>,
 }
 
-impl Worker {
+impl WorkerQueue {
     pub fn new(
         no: usize,
         queue: Arc<(Mutex<Queue>, Condvar)>,
         app_state: Arc<Mutex<AppState>>,
+        sender: Arc<Sender<Email>>,
     ) -> Self {
+        let tx_clone = Arc::clone(&sender);
+
         let thread = thread::spawn(move || {
             let (lock, cvar) = &*queue;
 
@@ -38,6 +44,7 @@ impl Worker {
                 if let Some(email) = job {
                     let mut app_state_lock = app_state.lock().unwrap();
                     app_state_lock.decrease_task();
+                    tx_clone.send(email).unwrap();
                     println!(
                         "{}",
                         format!("Jumlah Task {}", app_state_lock.total_task).red()
@@ -50,8 +57,20 @@ impl Worker {
         });
 
         let _no = no;
-        let _thread = thread;
+        let _worker = thread;
+        let _sender_email = sender;
 
-        Self { _no, _thread }
+        Self {
+            _no,
+            _worker,
+            _sender_email,
+        }
     }
+
+
+    pub fn return_thread(self) -> JoinHandle<()> {
+        self._worker
+    }
+
 }
+

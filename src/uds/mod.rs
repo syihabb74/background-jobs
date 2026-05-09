@@ -122,7 +122,7 @@ fn handle_client(mut stream: UnixStream, sender: Sender<Email>) {
     loop {
         if WILL_SHUTDOWN.load(Relaxed) {
             stream.write_all(b"Server will be shutdown").unwrap();
-            continue;
+            break;
         }
         match stream.read(&mut buffer) {
             Ok(0) => {
