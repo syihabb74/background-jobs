@@ -1,5 +1,7 @@
 use std::{
-    ops::Deref, sync::{Arc, mpsc::Receiver}, thread::{self, JoinHandle}
+    ops::Deref,
+    sync::{Arc, mpsc::Receiver},
+    thread::{self, JoinHandle},
 };
 
 use crate::{email::Email, smtp::smtp_config::SmtpConfig};
@@ -21,20 +23,18 @@ impl WorkerSmtp {
 
         let _worker = thread::spawn(move || {
             for email in receiver {
-                let sending = smtp_server_upgrade.send_email("Syihabb74@gmail.com", email);
-                if let Err(e) = sending {
-                    println!("{:?}", e);
-                    panic!()
-                }
+                // let sending = smtp_server_upgrade.send_email("Insert your sender here", email);
+                // if let Err(e) = sending {
+                // println!("{:?}", e);
+                // panic!()
+                // }
             }
         });
 
         Ok(Self { _no: no, _worker })
     }
 
-    pub fn return_thread (self) -> JoinHandle<()> {
+    pub fn return_thread(self) -> JoinHandle<()> {
         self._worker
     }
-
 }
-
